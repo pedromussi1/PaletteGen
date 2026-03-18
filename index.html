@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PaletteGen - Color Palette Generator</title>
+  <meta name="description" content="Generate beautiful color palettes instantly. Extract colors from images, create harmonious palettes, and export as CSS, Tailwind, or SVG.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='30' cy='35' r='18' fill='%23f43f5e'/><circle cx='70' cy='35' r='18' fill='%233b82f6'/><circle cx='50' cy='65' r='18' fill='%2322c55e'/><circle cx='50' cy='35' r='18' fill='%23a855f7' opacity='0.8'/></svg>">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface-raised: #1a1a2e;
+      --border: #2a2a3e;
+      --primary: #f43f5e;
+      --primary-hover: #fb7185;
+      --primary-glow: rgba(244, 63, 94, 0.15);
+      --text: #e0e0e8;
+      --text-muted: #888898;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    [data-theme="light"] {
+      --bg: #f5f5f8;
+      --surface: #ffffff;
+      --surface-raised: #f0f0f5;
+      --border: #d8d8e0;
+      --text: #1a1a2e;
+      --text-muted: #6b6b80;
+      --primary: #e11d48;
+      --primary-hover: #be123c;
+      --primary-glow: rgba(225, 29, 72, 0.12);
+    }
+
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+    main { width: 100%; max-width: 800px; padding: 2rem 1.5rem; flex: 1; }
+
+    header { text-align: center; margin-bottom: 2.5rem; }
+    header h1 { font-family: var(--mono); font-size: 2.8rem; font-weight: 700; letter-spacing: -0.02em; background: linear-gradient(135deg, #f43f5e, #a855f7, #3b82f6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.4rem; }
+    header p { color: var(--text-muted); font-size: 1.05rem; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+
+    .section-label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
+
+    /* Mode tabs */
+    .mode-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .mode-tab { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 0.85rem; font-weight: 500; padding: 0.45rem 0.9rem; cursor: pointer; transition: all 0.2s; }
+    .mode-tab:hover { border-color: var(--primary); color: var(--text); }
+    .mode-tab.active { border-color: var(--primary); background: var(--primary-glow); color: var(--primary); }
+
+    /* Base color picker */
+    .base-color-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+    .base-color-row input[type="color"] { width: 44px; height: 36px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: none; padding: 2px; }
+    .base-color-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    .base-color-row input[type="color"]::-webkit-color-swatch { border: none; border-radius: 5px; }
+    .base-color-row input[type="text"] { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--mono); font-size: 0.9rem; padding: 0.5rem 0.7rem; width: 8ch; outline: none; }
+    .base-color-row input[type="text"]:focus { border-color: var(--primary); }
+
+    /* Count selector */
+    .count-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .count-row label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .count-row input[type="range"] { flex: 1; accent-color: var(--primary); }
+    .count-row .count-val { font-family: var(--mono); font-size: 0.9rem; color: var(--text); min-width: 2ch; text-align: center; }
+
+    /* Image upload */
+    .image-section { display: none; margin-bottom: 1.25rem; }
+    .image-section.visible { display: block; }
+    .image-drop { border: 2px dashed var(--border); border-radius: 10px; padding: 1.5rem; text-align: center; cursor: pointer; transition: border-color 0.2s; }
+    .image-drop:hover { border-color: var(--primary); }
+    .image-drop.has-image { padding: 0.5rem; border-style: solid; }
+    .image-drop img { max-width: 100%; max-height: 200px; border-radius: 6px; display: block; margin: 0 auto; }
+    .image-drop p { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem; }
+
+    /* Generate button */
+    .btn-generate { width: 100%; padding: 0.8rem; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-family: var(--sans); font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s, box-shadow 0.2s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    .btn-generate:hover { background: var(--primary-hover); box-shadow: 0 0 20px var(--primary-glow); }
+    .btn-generate:active { transform: scale(0.98); }
+    .btn-generate kbd { font-family: var(--mono); font-size: 0.7rem; background: rgba(0,0,0,0.2); padding: 0.15rem 0.4rem; border-radius: 4px; opacity: 0.7; }
+
+    /* Palette display */
+    .palette-card { display: none; }
+    .palette-card.visible { display: block; }
+    .palette-bar { display: flex; border-radius: 10px; overflow: hidden; height: 120px; margin-bottom: 1rem; }
+    .palette-swatch { flex: 1; cursor: pointer; position: relative; transition: flex 0.3s; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 0.5rem; }
+    .palette-swatch:hover { flex: 1.5; }
+    .palette-swatch .swatch-label { font-family: var(--mono); font-size: 0.7rem; color: #fff; background: rgba(0,0,0,0.45); padding: 0.2rem 0.45rem; border-radius: 4px; opacity: 0; transition: opacity 0.2s; text-transform: uppercase; }
+    .palette-swatch:hover .swatch-label { opacity: 1; }
+
+    .palette-details { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
+    .color-chip { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem; cursor: pointer; transition: border-color 0.2s; }
+    .color-chip:hover { border-color: var(--primary); }
+    .color-chip-preview { height: 40px; border-radius: 5px; margin-bottom: 0.5rem; }
+    .color-chip-hex { font-family: var(--mono); font-size: 0.8rem; color: var(--text); text-transform: uppercase; }
+    .color-chip-rgb { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; }
+    .color-chip-hsl { font-size: 0.7rem; color: var(--text-muted); }
+
+    /* Output actions */
+    .output-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .output-header h2 { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .output-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .btn-action { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 0.78rem; font-weight: 500; padding: 0.35rem 0.7rem; cursor: pointer; transition: border-color 0.2s, color 0.2s; display: flex; align-items: center; gap: 0.35rem; }
+    .btn-action:hover { border-color: var(--primary); color: var(--text); }
+
+    /* Lock icon on swatches */
+    .swatch-lock { position: absolute; top: 0.4rem; right: 0.4rem; background: rgba(0,0,0,0.4); border: none; color: #fff; border-radius: 4px; padding: 0.2rem; cursor: pointer; opacity: 0; transition: opacity 0.2s; display: flex; }
+    .palette-swatch:hover .swatch-lock { opacity: 0.7; }
+    .swatch-lock:hover { opacity: 1 !important; }
+    .swatch-lock.locked { opacity: 1; background: rgba(0,0,0,0.6); }
+
+    /* Toast */
+    .toast-container { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); z-index: 1000; pointer-events: none; }
+    .toast { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--primary); border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.85rem; color: var(--text); box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in 1.7s forwards; pointer-events: auto; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
+
+    footer { width: 100%; text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.78rem; border-top: 1px solid var(--border); }
+    footer a { color: var(--primary); text-decoration: none; }
+    footer a:hover { color: var(--primary-hover); }
+
+    .theme-toggle { position: fixed; top: 1rem; right: 1rem; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); cursor: pointer; padding: 0.45rem; display: flex; align-items: center; justify-content: center; transition: border-color 0.2s, color 0.2s; z-index: 100; }
+    .theme-toggle:hover { border-color: var(--primary); color: var(--text); }
+    .theme-toggle svg { width: 18px; height: 18px; }
+
+    @media (max-width: 520px) {
+      main { padding: 1.5rem 1rem; }
+      header h1 { font-size: 2.2rem; }
+      .palette-bar { height: 90px; }
+      .btn-generate kbd { display: none; }
+      .palette-details { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .toast { animation: none; }
+      * { transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" id="theme-toggle" title="Toggle theme (T)">
+    <svg id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    <svg id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+  </button>
+
+  <main>
+    <header>
+      <h1>PaletteGen</h1>
+      <p>Generate beautiful color palettes</p>
+    </header>
+
+    <section class="card">
+      <div class="section-label">Mode</div>
+      <div class="mode-tabs">
+        <button class="mode-tab active" data-mode="harmony">Harmony</button>
+        <button class="mode-tab" data-mode="random">Random</button>
+        <button class="mode-tab" data-mode="image">From Image</button>
+      </div>
+
+      <div id="harmony-options">
+        <div class="section-label">Harmony Type</div>
+        <div class="mode-tabs" id="harmony-tabs">
+          <button class="mode-tab active" data-harmony="analogous">Analogous</button>
+          <button class="mode-tab" data-harmony="complementary">Complementary</button>
+          <button class="mode-tab" data-harmony="triadic">Triadic</button>
+          <button class="mode-tab" data-harmony="split-complementary">Split Comp.</button>
+          <button class="mode-tab" data-harmony="tetradic">Tetradic</button>
+          <button class="mode-tab" data-harmony="monochromatic">Monochromatic</button>
+        </div>
+
+        <div class="section-label">Base Color</div>
+        <div class="base-color-row">
+          <input type="color" id="base-color" value="#3b82f6">
+          <input type="text" id="base-hex" value="#3b82f6" maxlength="7">
+          <button class="btn-action" id="btn-random-base" title="Random base color">🎲 Random</button>
+        </div>
+      </div>
+
+      <div class="image-section" id="image-section">
+        <div class="section-label">Upload Image</div>
+        <div class="image-drop" id="image-drop">
+          <p>Drop an image or click to upload</p>
+          <input type="file" id="image-file" accept="image/*" style="display:none">
+        </div>
+      </div>
+
+      <div class="count-row">
+        <label>Colors</label>
+        <input type="range" id="color-count" min="3" max="10" value="5">
+        <span class="count-val" id="count-val">5</span>
+      </div>
+
+      <button class="btn-generate" id="btn-generate">
+        Generate Palette
+        <kbd>Space</kbd>
+      </button>
+    </section>
+
+    <!-- Output -->
+    <section class="card palette-card" id="palette-card">
+      <div class="output-header">
+        <h2>Palette</h2>
+        <div class="output-actions">
+          <button class="btn-action" id="btn-css">Copy CSS</button>
+          <button class="btn-action" id="btn-tailwind">Copy Tailwind</button>
+          <button class="btn-action" id="btn-svg">Download SVG</button>
+          <button class="btn-action" id="btn-url">Share Link</button>
+        </div>
+      </div>
+      <div class="palette-bar" id="palette-bar"></div>
+      <div class="palette-details" id="palette-details"></div>
+    </section>
+  </main>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <footer>
+    Client-side color generation &middot; No data sent to servers &middot;
+    <a href="https://github.com/pedromussi1/PaletteGen" target="_blank" rel="noopener">GitHub</a>
+  </footer>
+
+  <script>
+    // === Color conversion utilities ===
+    function hexToHSL(hex) {
+      let r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255;
+      const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max - min;
+      let h = 0, s = 0, l = (max+min)/2;
+      if (d !== 0) {
+        s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+        if (max === r) h = ((g-b)/d + (g < b ? 6 : 0))/6;
+        else if (max === g) h = ((b-r)/d + 2)/6;
+        else h = ((r-g)/d + 4)/6;
+      }
+      return { h: h*360, s: s*100, l: l*100 };
+    }
+
+    function hslToHex(h, s, l) {
+      h = ((h % 360) + 360) % 360;
+      s = Math.max(0, Math.min(100, s)) / 100;
+      l = Math.max(0, Math.min(100, l)) / 100;
+      const a = s * Math.min(l, 1-l);
+      const f = (n) => { const k = (n + h/30) % 12; return l - a * Math.max(Math.min(k-3, 9-k, 1), -1); };
+      const toHex = (x) => Math.round(x*255).toString(16).padStart(2,'0');
+      return '#' + toHex(f(0)) + toHex(f(8)) + toHex(f(4));
+    }
+
+    function hexToRGB(hex) {
+      return { r: parseInt(hex.slice(1,3),16), g: parseInt(hex.slice(3,5),16), b: parseInt(hex.slice(5,7),16) };
+    }
+
+    function randomHex() {
+      return '#' + Array.from(crypto.getRandomValues(new Uint8Array(3))).map(b => b.toString(16).padStart(2,'0')).join('');
+    }
+
+    // === Harmony generators ===
+    function generateHarmony(baseHex, type, count) {
+      const { h, s, l } = hexToHSL(baseHex);
+      const colors = [];
+
+      switch (type) {
+        case 'analogous':
+          for (let i = 0; i < count; i++) {
+            const angle = h + (i - Math.floor(count/2)) * 30;
+            const sl = l + (i - Math.floor(count/2)) * 4;
+            colors.push(hslToHex(angle, s, Math.max(15, Math.min(85, sl))));
+          }
+          break;
+        case 'complementary': {
+          const half = Math.floor(count / 2);
+          for (let i = 0; i < half; i++) {
+            colors.push(hslToHex(h, s - i*5, l + i*8));
+          }
+          for (let i = 0; i < count - half; i++) {
+            colors.push(hslToHex(h + 180, s - i*5, l + i*8));
+          }
+          break;
+        }
+        case 'triadic':
+          for (let i = 0; i < count; i++) {
+            const angle = h + (Math.floor(i / Math.ceil(count/3))) * 120;
+            const lShift = (i % Math.ceil(count/3)) * 10;
+            colors.push(hslToHex(angle, s, Math.max(20, Math.min(80, l + lShift - 10))));
+          }
+          break;
+        case 'split-complementary':
+          for (let i = 0; i < count; i++) {
+            let angle;
+            if (i < Math.ceil(count/3)) angle = h;
+            else if (i < Math.ceil(count*2/3)) angle = h + 150;
+            else angle = h + 210;
+            const lShift = (i % Math.ceil(count/3)) * 8;
+            colors.push(hslToHex(angle, s, Math.max(20, Math.min(80, l + lShift - 5))));
+          }
+          break;
+        case 'tetradic':
+          for (let i = 0; i < count; i++) {
+            const angle = h + (Math.floor(i / Math.ceil(count/4))) * 90;
+            const lShift = (i % Math.ceil(count/4)) * 10;
+            colors.push(hslToHex(angle, s, Math.max(20, Math.min(80, l + lShift - 5))));
+          }
+          break;
+        case 'monochromatic':
+          for (let i = 0; i < count; i++) {
+            const lightness = 20 + (i / (count - 1)) * 60;
+            const sat = s + (i - Math.floor(count/2)) * 5;
+            colors.push(hslToHex(h, Math.max(10, Math.min(100, sat)), lightness));
+          }
+          break;
+      }
+      return colors.slice(0, count);
+    }
+
+    function generateRandom(count) {
+      const colors = [];
+      // Use golden ratio for nice hue distribution
+      let hue = Math.random() * 360;
+      for (let i = 0; i < count; i++) {
+        hue = (hue + 137.508) % 360;
+        const sat = 55 + Math.random() * 35;
+        const lit = 35 + Math.random() * 35;
+        colors.push(hslToHex(hue, sat, lit));
+      }
+      return colors;
+    }
+
+    // === Image palette extraction (k-means) ===
+    function extractFromImage(img, count) {
+      const canvas = document.createElement('canvas');
+      const size = 100; // downsample for speed
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, size, size);
+      const data = ctx.getImageData(0, 0, size, size).data;
+
+      // Collect pixels
+      const pixels = [];
+      for (let i = 0; i < data.length; i += 4) {
+        pixels.push([data[i], data[i+1], data[i+2]]);
+      }
+
+      // k-means clustering
+      let centroids = [];
+      for (let i = 0; i < count; i++) {
+        centroids.push(pixels[Math.floor(Math.random() * pixels.length)].slice());
+      }
+
+      for (let iter = 0; iter < 15; iter++) {
+        const clusters = Array.from({ length: count }, () => []);
+        for (const px of pixels) {
+          let minDist = Infinity, minIdx = 0;
+          for (let c = 0; c < centroids.length; c++) {
+            const d = (px[0]-centroids[c][0])**2 + (px[1]-centroids[c][1])**2 + (px[2]-centroids[c][2])**2;
+            if (d < minDist) { minDist = d; minIdx = c; }
+          }
+          clusters[minIdx].push(px);
+        }
+        for (let c = 0; c < count; c++) {
+          if (clusters[c].length === 0) continue;
+          centroids[c] = [
+            Math.round(clusters[c].reduce((s,p) => s+p[0], 0) / clusters[c].length),
+            Math.round(clusters[c].reduce((s,p) => s+p[1], 0) / clusters[c].length),
+            Math.round(clusters[c].reduce((s,p) => s+p[2], 0) / clusters[c].length),
+          ];
+        }
+      }
+
+      // Sort by luminance
+      centroids.sort((a,b) => (0.299*a[0]+0.587*a[1]+0.114*a[2]) - (0.299*b[0]+0.587*b[1]+0.114*b[2]));
+
+      return centroids.map(c => '#' + c.map(v => Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join(''));
+    }
+
+    // === App state ===
+    let mode = 'harmony';
+    let harmonyType = 'analogous';
+    let palette = [];
+    let lockedColors = new Set();
+    let uploadedImage = null;
+
+    const els = {
+      baseColor: document.getElementById('base-color'),
+      baseHex: document.getElementById('base-hex'),
+      btnRandomBase: document.getElementById('btn-random-base'),
+      colorCount: document.getElementById('color-count'),
+      countVal: document.getElementById('count-val'),
+      harmonyOptions: document.getElementById('harmony-options'),
+      imageSection: document.getElementById('image-section'),
+      imageDrop: document.getElementById('image-drop'),
+      imageFile: document.getElementById('image-file'),
+      btnGenerate: document.getElementById('btn-generate'),
+      paletteCard: document.getElementById('palette-card'),
+      paletteBar: document.getElementById('palette-bar'),
+      paletteDetails: document.getElementById('palette-details'),
+      btnCSS: document.getElementById('btn-css'),
+      btnTailwind: document.getElementById('btn-tailwind'),
+      btnSVG: document.getElementById('btn-svg'),
+      btnURL: document.getElementById('btn-url'),
+      toastContainer: document.getElementById('toast-container'),
+    };
+
+    // === Mode tabs ===
+    document.querySelectorAll('.mode-tabs')[0].querySelectorAll('.mode-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.mode-tabs')[0].querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        mode = tab.dataset.mode;
+        els.harmonyOptions.style.display = mode === 'harmony' ? '' : 'none';
+        els.imageSection.classList.toggle('visible', mode === 'image');
+      });
+    });
+
+    // Harmony type tabs
+    document.getElementById('harmony-tabs').querySelectorAll('.mode-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.getElementById('harmony-tabs').querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        harmonyType = tab.dataset.harmony;
+      });
+    });
+
+    // Base color sync
+    els.baseColor.addEventListener('input', () => els.baseHex.value = els.baseColor.value);
+    els.baseHex.addEventListener('input', () => {
+      if (/^#[0-9a-fA-F]{6}$/.test(els.baseHex.value)) els.baseColor.value = els.baseHex.value;
+    });
+    els.baseHex.addEventListener('blur', () => els.baseHex.value = els.baseColor.value);
+    els.btnRandomBase.addEventListener('click', () => {
+      const c = randomHex();
+      els.baseColor.value = c;
+      els.baseHex.value = c;
+    });
+
+    // Count slider
+    els.colorCount.addEventListener('input', () => els.countVal.textContent = els.colorCount.value);
+
+    // Image upload
+    els.imageDrop.addEventListener('click', () => els.imageFile.click());
+    els.imageDrop.addEventListener('dragover', e => { e.preventDefault(); els.imageDrop.style.borderColor = 'var(--primary)'; });
+    els.imageDrop.addEventListener('dragleave', () => els.imageDrop.style.borderColor = '');
+    els.imageDrop.addEventListener('drop', e => {
+      e.preventDefault();
+      els.imageDrop.style.borderColor = '';
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) loadImage(file);
+    });
+    els.imageFile.addEventListener('change', e => {
+      if (e.target.files[0]) loadImage(e.target.files[0]);
+    });
+
+    function loadImage(file) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          uploadedImage = img;
+          els.imageDrop.innerHTML = '';
+          els.imageDrop.appendChild(img);
+          els.imageDrop.classList.add('has-image');
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // === Generate ===
+    function generate() {
+      const count = parseInt(els.colorCount.value);
+      let newColors;
+
+      if (mode === 'harmony') {
+        newColors = generateHarmony(els.baseColor.value, harmonyType, count);
+      } else if (mode === 'random') {
+        newColors = generateRandom(count);
+      } else if (mode === 'image') {
+        if (!uploadedImage) { showToast('Please upload an image first'); return; }
+        newColors = extractFromImage(uploadedImage, count);
+      }
+
+      // Preserve locked colors
+      palette = newColors.map((c, i) => lockedColors.has(i) && palette[i] ? palette[i] : c);
+
+      renderPalette();
+    }
+
+    // === Render ===
+    function renderPalette() {
+      els.paletteBar.innerHTML = '';
+      els.paletteDetails.innerHTML = '';
+
+      palette.forEach((hex, i) => {
+        // Bar swatch
+        const swatch = document.createElement('div');
+        swatch.className = 'palette-swatch';
+        swatch.style.background = hex;
+        swatch.innerHTML = `<span class="swatch-label">${hex}</span>`;
+        swatch.addEventListener('click', () => { copyText(hex); showToast('Copied ' + hex); });
+
+        // Lock button
+        const lockBtn = document.createElement('button');
+        lockBtn.className = 'swatch-lock' + (lockedColors.has(i) ? ' locked' : '');
+        lockBtn.innerHTML = lockedColors.has(i)
+          ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>';
+        lockBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          if (lockedColors.has(i)) lockedColors.delete(i);
+          else lockedColors.add(i);
+          renderPalette();
+        });
+        swatch.appendChild(lockBtn);
+        els.paletteBar.appendChild(swatch);
+
+        // Detail chip
+        const rgb = hexToRGB(hex);
+        const hsl = hexToHSL(hex);
+        const chip = document.createElement('div');
+        chip.className = 'color-chip';
+        chip.innerHTML = `
+          <div class="color-chip-preview" style="background:${hex}"></div>
+          <div class="color-chip-hex">${hex}</div>
+          <div class="color-chip-rgb">rgb(${rgb.r}, ${rgb.g}, ${rgb.b})</div>
+          <div class="color-chip-hsl">hsl(${Math.round(hsl.h)}, ${Math.round(hsl.s)}%, ${Math.round(hsl.l)}%)</div>
+        `;
+        chip.addEventListener('click', () => { copyText(hex); showToast('Copied ' + hex); });
+        els.paletteDetails.appendChild(chip);
+      });
+
+      els.paletteCard.classList.add('visible');
+      writeStateToURL();
+    }
+
+    // === Export ===
+    function toCSS() {
+      return ':root {\n' + palette.map((c, i) => `  --color-${i + 1}: ${c};`).join('\n') + '\n}';
+    }
+
+    function toTailwindConfig() {
+      return `// tailwind.config.js\nmodule.exports = {\n  theme: {\n    extend: {\n      colors: {\n        palette: {\n${palette.map((c, i) => `          ${i + 1}: '${c}',`).join('\n')}\n        }\n      }\n    }\n  }\n}`;
+    }
+
+    function toSVG() {
+      const w = 600, h = 120, sw = w / palette.length;
+      let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
+      palette.forEach((c, i) => { svg += `<rect x="${i*sw}" y="0" width="${sw}" height="${h}" fill="${c}"/>`; });
+      svg += '</svg>';
+      return svg;
+    }
+
+    els.btnCSS.addEventListener('click', () => { copyText(toCSS()); showToast('Copied CSS variables'); });
+    els.btnTailwind.addEventListener('click', () => { copyText(toTailwindConfig()); showToast('Copied Tailwind config'); });
+    els.btnSVG.addEventListener('click', () => {
+      const blob = new Blob([toSVG()], { type: 'image/svg+xml' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'palette.svg';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      showToast('Downloaded palette.svg');
+    });
+    els.btnURL.addEventListener('click', () => { copyText(window.location.href); showToast('Link copied'); });
+
+    // === URL State ===
+    function writeStateToURL() {
+      if (palette.length === 0) return;
+      const hash = palette.map(c => c.slice(1)).join('-');
+      history.replaceState(null, '', '#' + hash);
+    }
+
+    function readStateFromURL() {
+      const hash = location.hash.slice(1);
+      if (!hash) return false;
+      const hexes = hash.split('-').map(h => '#' + h).filter(h => /^#[0-9a-fA-F]{6}$/.test(h));
+      if (hexes.length >= 3) {
+        palette = hexes;
+        els.colorCount.value = palette.length;
+        els.countVal.textContent = palette.length;
+        renderPalette();
+        return true;
+      }
+      return false;
+    }
+
+    // === Helpers ===
+    async function copyText(text) {
+      try { await navigator.clipboard.writeText(text); }
+      catch { /* fallback not needed for modern browsers */ }
+    }
+
+    function showToast(msg) {
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      els.toastContainer.appendChild(t);
+      setTimeout(() => t.remove(), 2200);
+    }
+
+    // === Events ===
+    els.btnGenerate.addEventListener('click', generate);
+
+    document.addEventListener('keydown', e => {
+      if (e.key === ' ' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        generate();
+      }
+      if (e.key === 't' && !e.ctrlKey && document.activeElement.tagName !== 'INPUT') {
+        toggleTheme();
+      }
+    });
+
+    // === Theme ===
+    function setTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('palettegen-theme', theme);
+      document.getElementById('icon-moon').style.display = theme === 'light' ? 'none' : '';
+      document.getElementById('icon-sun').style.display = theme === 'light' ? '' : 'none';
+    }
+    function toggleTheme() {
+      setTheme((document.documentElement.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark');
+    }
+    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+    setTheme(localStorage.getItem('palettegen-theme') || 'dark');
+
+    // === Init ===
+    if (!readStateFromURL()) {
+      // Generate initial palette
+      generate();
+    }
+  </script>
+</body>
+</html>
