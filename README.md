@@ -2,6 +2,8 @@
 
 A free, client-side color palette generator. Create harmonious palettes, extract colors from images, and export as CSS, Tailwind, or SVG.
 
+**[Live Demo](https://palette-gen-pedromussi1s-projects.vercel.app/)**
+
 ## Features
 
 - **Harmony Mode** — Generate palettes based on color theory: Analogous, Complementary, Triadic, Split Complementary, Tetradic, Monochromatic
@@ -11,7 +13,7 @@ A free, client-side color palette generator. Create harmonious palettes, extract
 - **Adjustable Count** — Generate 3 to 10 colors per palette
 - **Shareable Links** — Palette encoded in URL hash for easy sharing
 - **Export** — Copy as CSS variables, Tailwind config, or download as SVG
-- **Dark/Light Theme** — Toggle with button or `T` key
+- **Dark/Light Theme** — Toggle with button or `T` key, persisted in localStorage
 
 ## Keyboard Shortcuts
 
@@ -28,7 +30,11 @@ A free, client-side color palette generator. Create harmonious palettes, extract
 
 ## Run Locally
 
-Open `index.html` in your browser. No install needed.
+Just open `index.html` in your browser. No install or build needed.
+
+## Deploy
+
+Static file — works on any hosting: GitHub Pages, Vercel, Netlify, or any web server.
 
 ## License
 
